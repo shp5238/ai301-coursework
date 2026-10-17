@@ -10,7 +10,7 @@ shp5238
 
 **Plan comment**
 
-[Pending: paste the permalink after posting the comment below on issue #64.]
+[https://github.com/codepath/pathreview-ai301-fa26-s3/issues/64#issuecomment-6228763720](https://github.com/codepath/pathreview-ai301-fa26-s3/issues/64#issuecomment-6228763720)
 
 I plan to correct the fixture in `test_query_with_partial_overlap`, not the scorer. My reproduction showed that the query and chunk share all four query tokens, so the current scorer correctly returns `1.0`:
 
