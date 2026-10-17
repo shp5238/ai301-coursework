@@ -2,78 +2,98 @@
 
 Path: `beat-1-sandbox/unit-3/plan-and-implement.md`
 
-Record of your plan, the branch you built it on, and the evaluation runs that produced
-`eval-run.txt`. This file is graded at the path above; a copy kept anywhere else in the
-repository is not read.
-
-Complete every labelled field below. Each is graded on its own; content placed under the wrong
-label is not graded.
-
----
-
 ## Posted upstream
 
 **GitHub username**
 
-[Your GitHub username, exactly as it appears on your profile - no @, no
-profile URL. Your comment upstream is identified by this name, and it is
-the only thing that ties it to you. Several students may plan the same
-house issue, so this is what keeps their comments off your score and
-yours off theirs.]
+shp5238
 
 **Plan comment**
 
-[Link to the comment where you posted your plan on the issue. Use the comment's own
-permalink. **Then paste the text of that comment underneath the link** — the pasted text is
-what this field is graded on, so copy across what you actually posted.]
+[Pending: paste the permalink after posting the comment below on issue #64.]
 
----
+I plan to correct the fixture in `test_query_with_partial_overlap`, not the scorer. My reproduction showed that the query and chunk share all four query tokens, so the current scorer correctly returns `1.0`:
+
+```text
+assert 1.0 < 0.9
+relevance_scored avg_score=1.0 chunks_count=1 query_len=4
+```
+
+I will update the chunk to omit one query term so it has genuine partial overlap, remove the issue #64 strict `xfail` marker once the test passes, and leave `RelevanceScorer` unchanged. I will verify that the target produces a middle-range score (expected `0.75`) and then run the complete `tests/unit/test_relevance_scorer.py` file, expecting all 19 tests to pass with no issue #64 xfail or XPASS.
 
 ## Your branch
 
 **Branch**
 
-[The name of the branch you built the change on, exactly as it appears in your fork. The
-naming shape is a type prefix, then the issue number, then a short description. **The issue
-number in the branch name must be the number of the issue you claimed** — a name carrying
-any other number does not satisfy this field.]
+`fix/64-partial-overlap-fixture`
 
 **Evidence**
 
-[Your Unit 2 reproduction steps re-run against the built change: the before, then the
-after. Paste both, including the commands you ran and their output.]
+Before the fix:
+
+```console
+$ python -m pytest -p no:cacheprovider tests/unit/test_relevance_scorer.py -q -rxX
+..x................                                                      [100%]
+=========================== short test summary info ============================
+XFAIL tests/unit/test_relevance_scorer.py::TestRelevanceScorer::test_query_with_partial_overlap - issue #64: relevance scorer 'partial overlap' fixture actually has full overlap
+18 passed, 1 xfailed in 0.40s
+```
+
+```console
+$ python -m pytest -p no:cacheprovider tests/unit/test_relevance_scorer.py::TestRelevanceScorer::test_query_with_partial_overlap --runxfail -q
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________ TestRelevanceScorer.test_query_with_partial_overlap ______________
+>       assert 0.3 < score < 0.9  # Partial overlap should be in middle range
+E       assert 1.0 < 0.9
+----------------------------- Captured stdout call -----------------------------
+relevance_scored avg_score=1.0 chunks_count=1 query_len=4
+=========================== short test summary info ============================
+FAILED tests/unit/test_relevance_scorer.py::TestRelevanceScorer::test_query_with_partial_overlap
+1 failed in 0.19s
+```
+
+After the fix:
+
+```console
+$ python -m pytest -p no:cacheprovider tests/unit/test_relevance_scorer.py::TestRelevanceScorer::test_query_with_partial_overlap --runxfail -q
+.                                                                        [100%]
+1 passed in 0.22s
+```
+
+```console
+$ python -m pytest -p no:cacheprovider tests/unit/test_relevance_scorer.py -q -rxX
+...................                                                      [100%]
+19 passed in 0.18s
+```
+
+```console
+$ python -c "from rag.evaluator.relevance_scorer import RelevanceScorer; q='Python Django web framework'; c={'text':'Django is a Python framework for rapid development'}; s=RelevanceScorer(); print('query_tokens=', sorted(s._tokenize(q))); print('overlap=', sorted(set(s._tokenize(q)) & set(s._tokenize(c['text'])))); print('score=', s.score(q, [c]))"
+query_tokens= ['django', 'framework', 'python', 'web']
+overlap= ['django', 'framework', 'python']
+relevance_scored avg_score=0.75 chunks_count=1 query_len=4
+score= 0.75
+```
 
 ## Eval iterations
 
-Answer all four sections. Quote source text directly; paraphrase does not satisfy these
-fields.
-
 **Run history**
 
-[The agreement score of each run you did, in order. A single run is a complete answer if
-only one run occurred. **The last score in your list must match the agreement line in the
-`eval-run.txt` you committed** — that file is the record of your final run.]
+1. Targeted smoke run (`pkg-02,pkg-06,pkg-20`): `agreement: 3/3 scored items`.
+2. Final complete saved run: `agreement: 20/20 scored items  (bar: 18/20: PASS)`.
 
 **Package analysis**
 
-[Pick one scored package (`pkg-01` through `pkg-20` — the four `calib-` packages are never
-scored). Name it by id, say what your rubric decided and what the gold label said, and
-explain why your rubric read it that way.]
+For `pkg-04`, the final rubric decided `reject`, matching the gold label `reject`. The issue thread says the owner isolated the culprit in `src/tui/light_windows.go`, posted a patched test binary, and asked for testing. The candidate instead proposed only documenting a workaround and did not address that direction. The required `thread-direction-followed` check therefore failed even though the workaround itself was concrete.
 
 **Check rationale**
 
-[Quote one check from the `rubric.md` you uploaded to `tools/plan-check/`, exactly as it reads now.
-Then say why it reads that way — what you revised to get there, or what you rejected in
-favour of it.]
+Final `thread-direction-followed` check, quoted exactly from the uploaded `rubric.md`:
+
+> | thread-direction-followed | Read the candidate plan and plan comment against explicit maintainer direction, prior-art links, ownership claims, and requested experiments in the issue context or thread highlights. | Pass when the proposal follows, directly answers, or explicitly and reasonably distinguishes every applicable maintainer direction; it must not silently pursue a conflicting approach or race known active work. If the thread contains no applicable direction, pass. | required |
+
+I made this check required because a technically bounded plan can still be unready when it ignores the maintainer's chosen direction or duplicates active work. The pass condition also permits a reasoned alternative instead of forcing blind agreement, and it explicitly passes when there is no applicable direction so quiet threads are not penalized.
 
 **Trade-offs**
 
-[Every check gives something up. Any one of these is a complete answer: a package whose
-result it changes, a canary you re-ran with `--only`, a case you accept it will miss, or a
-stated reason nothing changed elsewhere. "Nothing changed, and here is how I know" earns
-the point in full when the reason follows.]
-
----
-
-Related paths: `plan.md` and `eval-run.txt` in this directory; your skill's files in
-`tools/plan-check/`.
+This check gives maintainer and ownership signals more weight than an independently workable proposal. It changes `pkg-04` to reject because the candidate silently substitutes a documentation workaround for the owner's requested code experiment, while `pkg-03` and `pkg-08` remain accepted because their plans engage existing work rather than racing it. The trade-off is that a contributor must spend plan space distinguishing a different approach when the thread already points elsewhere, but that coordination cost is preferable to posting a conflicting plan without acknowledgment.
